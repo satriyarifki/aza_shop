@@ -1,6 +1,10 @@
+// Explicit imports (instead of Nuxt auto-imports) let this store run in plain Vitest
+import { navigateTo } from "#app";
 import { defineStore } from "pinia";
+import { computed, ref } from "vue";
 import type { ApiSuccessResponse } from "~/types/api";
 import type { LoginResponse, User } from "~/types/auth";
+import { apiRequest } from "~/utils/api";
 
 const TOKEN_STORAGE_KEY = "shop_admin_token";
 
