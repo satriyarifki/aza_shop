@@ -1,0 +1,13 @@
+{
+  "name": "shop-app",
+  "private": true,
+  "description": "Shop management app: Hono backend and Nuxt frontend",
+  "scripts": {
+    "setup": "npm --prefix backend install && npm --prefix backend run db:setup && cd frontend && corepack pnpm install",
+    "dev": "node scripts/dev.mjs",
+    "test": "npm --prefix backend test && cd frontend && corepack pnpm test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
