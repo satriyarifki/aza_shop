@@ -3,19 +3,12 @@ import { db } from "../../db/index.js";
 import { products } from "../../db/schema/index.js";
 import { AppError } from "../../utils/app-error.js";
 import { getOffset } from "../../utils/pagination.js";
+import { containsPattern } from "../../utils/search.js";
 import type { ListProductsQuery, ProductBody } from "./product.schema.js";
-
-// Treat % and _ in the search text as literal characters instead of LIKE wildcards
-function escapeLikePattern(value: string) {
-  return value.replace(/[\\%_]/g, "\\$&");
-}
 
 export async function listProducts({ page, limit, search }: ListProductsQuery) {
   const searchFilter = search
-    ? or(
-        ilike(products.productCode, `%${escapeLikePattern(search)}%`),
-        ilike(products.name, `%${escapeLikePattern(search)}%`),
-      )
+    ? or(ilike(products.productCode, containsPattern(search)), ilike(products.name, containsPattern(search)))
     : undefined;
 
   const items = await db
