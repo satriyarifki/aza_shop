@@ -15,7 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
-    "db:setup": "drizzle-kit migrate && tsx src/db/seed.ts",
+    "db:setup": "tsx src/db/setup.ts && tsx src/db/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

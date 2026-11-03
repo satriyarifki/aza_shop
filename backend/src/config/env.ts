@@ -1,9 +1,9 @@
 import { config } from "dotenv";
 import { z } from "zod";
 
-// Tests run against their own database, configured in .env.test
-const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
-config({ path: envFile, quiet: true });
+// Tests use .env.test for their own database; anything not set there falls back to .env
+const envFiles = process.env.NODE_ENV === "test" ? [".env.test", ".env"] : [".env"];
+config({ path: envFiles, quiet: true });
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -22,7 +22,7 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
-  console.error(`Invalid environment configuration (${envFile}):`);
+  console.error(`Invalid environment configuration (${envFiles.join(", ")}):`);
   for (const issue of parsed.error.issues) {
     console.error(`  - ${issue.path.join(".")}: ${issue.message}`);
   }
