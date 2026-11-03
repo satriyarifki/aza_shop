@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { orderStatusEnum } from "../../db/schema/index.js";
+import { isValidCalendarDate } from "../../utils/date.js";
+import { paginationQuerySchema } from "../../utils/pagination.js";
 
 const POSTGRES_INTEGER_MAX = 2_147_483_647;
 const MAX_ITEMS_PER_ORDER = 100;
@@ -15,6 +18,26 @@ export const orderIdParamSchema = z.object({
     .int("Order ID must be an integer")
     .positive("Order ID must be a positive integer"),
 });
+
+// Calendar dates in the business timezone (Asia/Jakarta), e.g. "2026-11-03"
+const businessDateSchema = (label: string) =>
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: `${label} must use the YYYY-MM-DD format`, abort: true })
+    .refine(isValidCalendarDate, `${label} is not a valid calendar date`);
+
+export const listOrdersQuerySchema = paginationQuerySchema
+  .extend({
+    status: z
+      .enum(orderStatusEnum.enumValues, `Status must be one of ${orderStatusEnum.enumValues.join(", ")}`)
+      .optional(),
+    start_date: businessDateSchema("Start date").optional(),
+    end_date: businessDateSchema("End date").optional(),
+  })
+  .refine((query) => !query.start_date || !query.end_date || query.start_date <= query.end_date, {
+    path: ["start_date"],
+    message: "Start date must not be after end date",
+  });
 
 // Only product IDs and quantities are accepted; prices and totals are always calculated by the backend
 const orderItemSchema = z
@@ -52,4 +75,5 @@ export const createOrderSchema = z
     });
   });
 
+export type ListOrdersQuery = z.infer<typeof listOrdersQuerySchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

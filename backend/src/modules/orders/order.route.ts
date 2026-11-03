@@ -1,11 +1,29 @@
 import { Hono } from "hono";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
 import { validate } from "../../middlewares/validate.middleware.js";
-import { sendSuccess } from "../../utils/response.js";
-import { createOrderSchema, orderIdParamSchema } from "./order.schema.js";
+import { sendPaginated, sendSuccess } from "../../utils/response.js";
+import { createOrderSchema, listOrdersQuerySchema, orderIdParamSchema } from "./order.schema.js";
 import * as orderService from "./order.service.js";
 
+type OrderSummary = Awaited<ReturnType<typeof orderService.listOrders>>["items"][number];
 type OrderDetail = Awaited<ReturnType<typeof orderService.getOrderById>>;
+
+function toOrderSummaryResponse(order: OrderSummary) {
+  return {
+    id: order.id,
+    order_number: order.orderNumber,
+    status: order.status,
+    subtotal: order.subtotal.toString(),
+    discount_amount: order.discountAmount.toString(),
+    grand_total: order.grandTotal.toString(),
+    customer: {
+      id: order.customer.id,
+      name: order.customer.name,
+    },
+    created_at: order.createdAt.toISOString(),
+    updated_at: order.updatedAt.toISOString(),
+  };
+}
 
 function toOrderDetailResponse(order: OrderDetail) {
   return {
@@ -44,6 +62,23 @@ function toOrderDetailResponse(order: OrderDetail) {
 export const orderRoutes = new Hono();
 
 orderRoutes.use("*", requireAuth);
+
+orderRoutes.get("/", validate("query", listOrdersQuerySchema), async (c) => {
+  const query = c.req.valid("query");
+  const { items, total } = await orderService.listOrders(query);
+
+  return sendPaginated(c, "Orders retrieved successfully", items.map(toOrderSummaryResponse), {
+    page: query.page,
+    limit: query.limit,
+    total,
+  });
+});
+
+orderRoutes.get("/:id", validate("param", orderIdParamSchema), async (c) => {
+  const order = await orderService.getOrderById(c.req.valid("param").id);
+
+  return sendSuccess(c, "Order retrieved successfully", toOrderDetailResponse(order));
+});
 
 orderRoutes.post("/", validate("json", createOrderSchema), async (c) => {
   const order = await orderService.createOrder(c.req.valid("json"), c.get("user").id);

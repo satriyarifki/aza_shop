@@ -1,11 +1,43 @@
-import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, sql, type SQL } from "drizzle-orm";
 import { db, type Transaction } from "../../db/index.js";
 import { customers, orderItems, orders, products } from "../../db/schema/index.js";
 import { AppError, type FieldError } from "../../utils/app-error.js";
+import { addDays, startOfBusinessDay } from "../../utils/date.js";
 import { generateOrderNumber } from "../../utils/order-number.js";
+import { getOffset } from "../../utils/pagination.js";
 import { calculateDiscount } from "./order.discount.js";
-import type { CreateOrderInput } from "./order.schema.js";
+import type { CreateOrderInput, ListOrdersQuery } from "./order.schema.js";
 import { allowedStatusTransitions, type OrderStatus } from "./order.types.js";
+
+export async function listOrders({ page, limit, status, start_date, end_date }: ListOrdersQuery) {
+  const conditions: SQL[] = [];
+
+  if (status) {
+    conditions.push(eq(orders.status, status));
+  }
+
+  // Dates are business-timezone calendar days: inclusive start, exclusive start of the day after end_date
+  if (start_date) {
+    conditions.push(gte(orders.createdAt, startOfBusinessDay(start_date)));
+  }
+  if (end_date) {
+    conditions.push(lt(orders.createdAt, startOfBusinessDay(addDays(end_date, 1))));
+  }
+
+  const filters = and(...conditions);
+
+  const items = await db.query.orders.findMany({
+    where: filters,
+    with: { customer: { columns: { id: true, name: true } } },
+    orderBy: [desc(orders.createdAt), desc(orders.id)],
+    limit,
+    offset: getOffset(page, limit),
+  });
+
+  const [result] = await db.select({ total: count() }).from(orders).where(filters);
+
+  return { items, total: result?.total ?? 0 };
+}
 
 export async function getOrderById(id: number) {
   const order = await db.query.orders.findFirst({
