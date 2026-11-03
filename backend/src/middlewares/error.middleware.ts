@@ -31,10 +31,19 @@ export const errorHandler: ErrorHandler = (error, c) => {
   }
 
   if (error instanceof ZodError) {
-    const errors = error.issues.map((issue) => ({
-      field: issue.path.join("."),
-      message: issue.message,
-    }));
+    const errors = error.issues.flatMap((issue) => {
+      const parentPath = issue.path.join(".");
+
+      // Unknown fields are reported on the parent object, with their names in `keys`
+      if (issue.code === "unrecognized_keys") {
+        return issue.keys.map((key) => ({
+          field: parentPath ? `${parentPath}.${key}` : key,
+          message: "Unknown field",
+        }));
+      }
+
+      return [{ field: parentPath, message: issue.message }];
+    });
     return sendError(c, 400, "Validation failed", errors);
   }
 
