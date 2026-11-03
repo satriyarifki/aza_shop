@@ -63,6 +63,20 @@ describe("protected endpoints", () => {
     expect(response.body.message).toBe("Invalid token");
   });
 
+  it("allows browser requests from the configured frontend origin only", async () => {
+    const allowed = await api
+      .options("/api/auth/login")
+      .set("Origin", "http://localhost:3001")
+      .set("Access-Control-Request-Method", "POST");
+    const blocked = await api
+      .options("/api/auth/login")
+      .set("Origin", "http://evil.example")
+      .set("Access-Control-Request-Method", "POST");
+
+    expect(allowed.headers["access-control-allow-origin"]).toBe("http://localhost:3001");
+    expect(blocked.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+
   it("returns the current user for a valid token", async () => {
     const authorization = await loginAsAdmin();
     const response = await api.get("/api/auth/me").set("Authorization", authorization);

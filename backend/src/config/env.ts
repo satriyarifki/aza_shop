@@ -17,6 +17,12 @@ const envSchema = z.object({
   BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(12),
 
   APP_TIMEZONE: z.string().min(1).default("Asia/Jakarta"),
+
+  // Comma-separated list of frontend origins allowed to call the API from a browser
+  CORS_ORIGIN: z
+    .string()
+    .default("http://localhost:3001")
+    .transform((value) => value.split(",").map((origin) => origin.trim()).filter(Boolean)),
 });
 
 const parsed = envSchema.safeParse(process.env);
