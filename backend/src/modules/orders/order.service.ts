@@ -1,10 +1,11 @@
 import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
-import { db } from "../../db/index.js";
+import { db, type Transaction } from "../../db/index.js";
 import { customers, orderItems, orders, products } from "../../db/schema/index.js";
 import { AppError, type FieldError } from "../../utils/app-error.js";
 import { generateOrderNumber } from "../../utils/order-number.js";
 import { calculateDiscount } from "./order.discount.js";
 import type { CreateOrderInput } from "./order.schema.js";
+import { allowedStatusTransitions, type OrderStatus } from "./order.types.js";
 
 export async function getOrderById(id: number) {
   const order = await db.query.orders.findFirst({
@@ -119,4 +120,66 @@ export async function createOrder(input: CreateOrderInput, userId: number) {
   });
 
   return getOrderById(orderId);
+}
+
+// Locking the order row makes concurrent pay/cancel requests for the same order run one at a time,
+// so each one sees the status left by the previous request.
+async function lockOrderForStatusChange(tx: Transaction, id: number, nextStatus: OrderStatus) {
+  const [order] = await tx
+    .select({ id: orders.id, status: orders.status })
+    .from(orders)
+    .where(eq(orders.id, id))
+    .for("update");
+
+  if (!order) {
+    throw new AppError(404, "Order not found");
+  }
+
+  if (order.status === nextStatus) {
+    throw new AppError(409, `Order is already ${nextStatus.toLowerCase()}`);
+  }
+
+  if (!allowedStatusTransitions[order.status].includes(nextStatus)) {
+    throw new AppError(409, `Cannot change order status from ${order.status} to ${nextStatus}`);
+  }
+
+  return order;
+}
+
+export async function payOrder(id: number) {
+  await db.transaction(async (tx) => {
+    await lockOrderForStatusChange(tx, id, "PAID");
+    await tx.update(orders).set({ status: "PAID" }).where(eq(orders.id, id));
+  });
+
+  return getOrderById(id);
+}
+
+export async function cancelOrder(id: number) {
+  await db.transaction(async (tx) => {
+    await lockOrderForStatusChange(tx, id, "CANCELLED");
+    await tx.update(orders).set({ status: "CANCELLED" }).where(eq(orders.id, id));
+
+    const items = await tx
+      .select({ productId: orderItems.productId, quantity: orderItems.quantity })
+      .from(orderItems)
+      .where(eq(orderItems.orderId, id));
+
+    // Same ascending lock order as order creation, to avoid deadlocks between the two
+    await tx
+      .select({ id: products.id })
+      .from(products)
+      .where(inArray(products.id, items.map((item) => item.productId)))
+      .orderBy(asc(products.id))
+      .for("update");
+
+    for (const item of items) {
+      await tx
+        .update(products)
+        .set({ stock: sql`${products.stock} + ${item.quantity}` })
+        .where(eq(products.id, item.productId));
+    }
+  });
+
+  return getOrderById(id);
 }

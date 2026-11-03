@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { requireAuth } from "../../middlewares/auth.middleware.js";
 import { validate } from "../../middlewares/validate.middleware.js";
 import { sendSuccess } from "../../utils/response.js";
-import { createOrderSchema } from "./order.schema.js";
+import { createOrderSchema, orderIdParamSchema } from "./order.schema.js";
 import * as orderService from "./order.service.js";
 
 type OrderDetail = Awaited<ReturnType<typeof orderService.getOrderById>>;
@@ -49,4 +49,16 @@ orderRoutes.post("/", validate("json", createOrderSchema), async (c) => {
   const order = await orderService.createOrder(c.req.valid("json"), c.get("user").id);
 
   return sendSuccess(c, "Order created successfully", toOrderDetailResponse(order), 201);
+});
+
+orderRoutes.patch("/:id/pay", validate("param", orderIdParamSchema), async (c) => {
+  const order = await orderService.payOrder(c.req.valid("param").id);
+
+  return sendSuccess(c, "Order paid successfully", toOrderDetailResponse(order));
+});
+
+orderRoutes.patch("/:id/cancel", validate("param", orderIdParamSchema), async (c) => {
+  const order = await orderService.cancelOrder(c.req.valid("param").id);
+
+  return sendSuccess(c, "Order cancelled successfully", toOrderDetailResponse(order));
 });

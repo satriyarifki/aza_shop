@@ -9,6 +9,13 @@ const positiveId = (label: string) =>
     .int(`${label} must be an integer`)
     .positive(`${label} must be a positive integer`);
 
+export const orderIdParamSchema = z.object({
+  id: z.coerce
+    .number("Order ID must be a number")
+    .int("Order ID must be an integer")
+    .positive("Order ID must be a positive integer"),
+});
+
 // Only product IDs and quantities are accepted; prices and totals are always calculated by the backend
 const orderItemSchema = z
   .object({
