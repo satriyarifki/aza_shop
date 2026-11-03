@@ -53,13 +53,7 @@ async function submit() {
       </div>
 
       <form class="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" novalidate @submit.prevent="submit">
-        <div
-          v-if="formError"
-          role="alert"
-          class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
-        >
-          {{ formError }}
-        </div>
+        <BaseAlert v-if="formError">{{ formError }}</BaseAlert>
 
         <BaseInput
           v-model="form.email"
