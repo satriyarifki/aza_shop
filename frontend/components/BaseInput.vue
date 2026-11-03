@@ -8,6 +8,7 @@ defineProps<{
   error?: string;
   hint?: string;
   autocomplete?: string;
+  inputmode?: "text" | "numeric" | "email" | "tel" | "search";
   required?: boolean;
 }>();
 
@@ -26,6 +27,7 @@ const inputId = useId();
       :type="type ?? 'text'"
       :placeholder="placeholder"
       :autocomplete="autocomplete"
+      :inputmode="inputmode"
       :aria-invalid="Boolean(error)"
       :aria-describedby="error || hint ? `${inputId}-message` : undefined"
       class="block w-full rounded-lg border bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-2 focus:outline-offset-0"

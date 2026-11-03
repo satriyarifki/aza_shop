@@ -12,3 +12,6 @@ coverage/
 *.log
 .DS_Store
 .claude/
+
+# Local implementation guide, not part of the app
+fe-writing-block.md
